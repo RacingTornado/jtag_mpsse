@@ -98,7 +98,10 @@ int main(int argc, char **argv) {
 	u32 x;
 
 	if (!(jtag = jtag_open()))
+	{
+
 		return -1;
+    }
 	if ((n = jtag_enumerate(jtag)) <= 0)
 		return -1;
 
@@ -127,7 +130,7 @@ int main(int argc, char **argv) {
 	fprintf(stderr, "user4 %08lx\n", u);
 	jtag_dr_io(jtag, 32, 0xa7a7a7a7, &u);
 	fprintf(stderr, "user4 %08lx\n", u);
- 
+
 #if 0
 	jtag_dp_rd(jtag, DPACC_CSW, &x);
 	fprintf(stderr,"CSW %08x\n", x);
@@ -146,7 +149,7 @@ int main(int argc, char **argv) {
 #endif
 
 #if STRESSTEST
-	for (n = 0; n < 0xFFFFFFFF; n++) { 
+	for (n = 0; n < 0xFFFFFFFF; n++) {
 		u32 z = (n >> 16) | (n << 16);
 		x = 0xeeeeeeee;
 		jtag_ap_wr(jtag, APACC_TAR, z);

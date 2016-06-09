@@ -53,8 +53,8 @@ struct device_info *identify_device(u32 idcode) {
 	return NULL;
 }
 
-#define TRACE_USB	0
-#define TRACE_JTAG	0
+#define TRACE_USB	1
+#define TRACE_JTAG	1
 
 #define DEVICE_MAX 16
 
@@ -84,10 +84,8 @@ struct jtag_handle {
 
 static int usb_open(JTAG *jtag, unsigned vid, unsigned pid) {
 	struct libusb_device_handle *udev;
-
 	if (libusb_init(NULL) < 0)
 		return -1;
-
 	if (!(udev = libusb_open_device_with_vid_pid(NULL, vid, pid))) {
 		fprintf(stderr,"cannot find device\n");
 		return -1;
@@ -99,6 +97,7 @@ static int usb_open(JTAG *jtag, unsigned vid, unsigned pid) {
 		fprintf(stderr,"cannot claim interface\n");
 		return -1;
 	}
+
 	jtag->udev = udev;
 	jtag->ep_in = 0x81;
 	jtag->ep_out = 0x02;
@@ -121,6 +120,9 @@ static void dump(char *prefix, void *data, int len) {
 static int usb_bulk(struct libusb_device_handle *udev,
 	unsigned char ep, void *data, int len, unsigned timeout) {
 	int r, xfer;
+
+fprintf(stderr,"%x",ep);
+ep=0x01;
 #if TRACE_USB
 	if (!(ep & 0x80))
 		dump("xmit", data, len);
@@ -147,8 +149,10 @@ static int usb_bulk(struct libusb_device_handle *udev,
 #define FTDI_IFC_B 2
 
 int ftdi_reset(struct libusb_device_handle *udev) {
+
+char * a ="Hello";
 	if (libusb_control_transfer(udev,
-		FTDI_REQTYPE_OUT, FTDI_CTL_RESET, 0, FTDI_IFC_A, NULL, 0, 10000) < 0) {
+		FTDI_REQTYPE_OUT, FTDI_CTL_RESET, 0, FTDI_IFC_A, a, 3, 10000) < 0) {
 		fprintf(stderr,"ftdi: reset failed\n");
 		return -1;
 	}
@@ -171,13 +175,13 @@ int ftdi_mpsse_enable(struct libusb_device_handle *udev) {
 		fprintf(stderr,"ftdi: disable event character failed\n");
 		return -1;
 	}
-	return 0;	
+	return 0;
 	if (libusb_control_transfer(udev,
 		FTDI_REQTYPE_OUT, FTDI_CTL_SET_ERROR_CH, 0, FTDI_IFC_A, NULL, 0, 10000) < 0) {
 		fprintf(stderr,"ftdi: disable error character failed\n");
 		return -1;
 	}
-	return 0;	
+	return 0;
 }
 
 /* TODO: handle smaller packet size for lowspeed version of the part */
@@ -391,7 +395,7 @@ static int jtag_shift_ir(JTAG *jtag, int count, u64 bits,
  *          after entry, shifts occur on each +TCK, *including* the +TCK
  *          that will exist Shift-XR when TMS=1 again
  * Update-XR update occurs on the -TCK after entry to state
- * 
+ *
  * Any -> Reset: 11111
  * Any -> Reset -> RTI: 111110
  * RTI -> ShiftDR: 100
@@ -430,8 +434,10 @@ JTAG *jtag_open(void) {
 	jtag->read_size = sizeof(jtag->read_buffer);
 
 	r = usb_open(jtag, 0x0403, 0x6010);
+
 	if (r < 0)
 		goto fail;
+    fprintf(stderr,">>> %s <<<\n", "Hi");
 	if (ftdi_reset(jtag->udev))
 		goto fail;
 	if (ftdi_mpsse_enable(jtag->udev))
@@ -469,8 +475,8 @@ int jtag_enumerate(JTAG *jtag) {
 	_jtag_shift(jtag, 64, 0xFFFFFFFFFFFFFFFFULL, NULL, MOVE_NONE);
 	_jtag_shift(jtag, 64, 0xFFFFFFFFFFFFFFFFULL, NULL, MOVE_SHIFTxR_TO_IDLE);
 	jtag_move(jtag, MOVE_IDLE_TO_SHIFTDR);
-	/* BYPASS registers should be one 0 bit each. 
-	 * Shift a pattern in and try to find it after all the 0s. 
+	/* BYPASS registers should be one 0 bit each.
+	 * Shift a pattern in and try to find it after all the 0s.
 	 * If we can't find it, there must be >16 devices on the chain
 	 * and/or they have enormous instruction registers.
 	 */
